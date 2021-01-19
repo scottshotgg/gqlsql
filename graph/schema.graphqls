@@ -6,12 +6,6 @@ type Todo {
   id: ID!
   text: String!
   done: Boolean!
-  user: User!
-}
-
-type User {
-  id: ID!
-  name: String!
 }
 
 type Query {
@@ -19,8 +13,9 @@ type Query {
 }
 
 input NewTodo {
+  id: ID!
   text: String!
-  userId: String!
+  done: Boolean!
 }
 
 type Mutation {

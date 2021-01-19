@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -19,19 +18,29 @@ import (
 const defaultPort = "8080"
 
 func main() {
-	var ctx = context.Background()
-
-	var s, err = postgres.New(ctx)
-	if err != nil {
-		log.Fatalln("err:", err)
-	}
-
-	port := os.Getenv("PORT")
+	var port = os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
 	}
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &resolver{s: s}}))
+	var (
+		ctx    = context.Background()
+		s, err = postgres.New(ctx)
+	)
+
+	if err != nil {
+		log.Fatalln("err:", err)
+	}
+
+	var (
+		conf = generated.Config{
+			Resolvers: &resolver{
+				s: s,
+			},
+		}
+
+		srv = handler.NewDefaultServer(generated.NewExecutableSchema(conf))
+	)
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
@@ -59,7 +68,7 @@ func (r *resolver) Todos(ctx context.Context) ([]*model.Todo, error) {
 }
 
 func (r *resolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	return nil, errors.New("not implemented")
+	return r.s.CreateTODO(ctx, input.ID, input.Text, input.Done)
 }
 
 func GetPreloads(ctx context.Context) []string {

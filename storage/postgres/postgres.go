@@ -2,11 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/scottshotgg/gqlsql/graph/model"
@@ -27,7 +26,7 @@ const (
 
 	getTodos = `select %s from todos;`
 
-	insertTodo = `insert into todos values ($1, $2, $3);`
+	insertTodo = `insert into todos values ($1, $2, $3) returning *;`
 )
 
 func New(ctx context.Context) (*Postgres, error) {
@@ -39,13 +38,6 @@ func New(ctx context.Context) (*Postgres, error) {
 	_, err = conn.ExecContext(ctx, todosTable)
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
-			return nil, err
-		}
-	}
-
-	for i := 0; i < 10; i++ {
-		_, err = conn.ExecContext(ctx, insertTodo, uuid.New().String(), "something_here_"+strconv.Itoa(i), i%2 == 0)
-		if err != nil {
 			return nil, err
 		}
 	}
@@ -66,4 +58,19 @@ func (p *Postgres) GetTODOs(ctx context.Context, fields []string) ([]*model.Todo
 	}
 
 	return todos, nil
+}
+
+func (p *Postgres) CreateTODO(ctx context.Context, id string, text string, done bool) (*model.Todo, error) {
+	var todo model.Todo
+
+	var res, err = p.db.QueryxContext(ctx, insertTodo, id, text, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if !res.Next() {
+		return nil, errors.New("not found")
+	}
+
+	return &todo, res.StructScan(&todo)
 }
